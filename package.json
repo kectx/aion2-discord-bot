@@ -12,6 +12,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "deploy": "tsx src/deploy-commands.ts",
+    "sync-check": "tsx scripts/sync-check.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
