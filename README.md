@@ -1,36 +1,42 @@
 # AION 2 Discord Bot
 
-Self-hostable Discord bot for **AION 2** world-event timers. Slash command `/timer` shows upcoming Spacetime Rift, Shugo Festival, Dimensional Invasion, sieges, bosses, arena windows, and resets — with multi-region support.
+Self-hostable Discord bot for **AION 2** world-event timers — multi-region countdowns, live panel, and pre-event alerts.
 
 Schedules are **community-observed / client-derived**, not an official NC API. Always cross-check with the in-game clock after patches.
 
-## Features (MVP)
+## Features
 
-- `/timer [region] [event]` — upcoming countdowns with Discord-native timestamps (each reader sees local time)
-- Region resolution: slash option → mapped Discord role → guild default → ephemeral select menu
-- `/config` — set default region and role → region maps (`Manage Server` required)
-- `/ping` — latency check
-- Data-driven schedules for **Global** (NA East/West, EU, LATAM, Asia), **Korea**, and **Taiwan**
-- SQLite guild settings (ready for a future public invite bot)
+- `/timer` — upcoming event board (Discord-native timestamps)
+- `/next` — next single event (default: Spacetime Rift)
+- `/reset` — next daily + weekly reset
+- `/panel` — live message that auto-edits about every minute
+- `/alert` — channel pings before selected events
+- `/config` — guild default region + role → region maps
+- `/ping` — latency
+- `npm run sync-check` — offline diff vs [Shugo.GG `timers.json`](https://shugo.gg/timers.json)
+
+Regions: Global (NA East/West, EU, LATAM, Asia), Korea, Taiwan.
 
 ## Requirements
 
 - Node.js **20.18+** (22+ recommended)
-- A Discord application + bot token ([Developer Portal](https://discord.com/developers/applications))
+- Discord application + bot token ([Developer Portal](https://discord.com/developers/applications))
 
 ## Quick start
 
 ```bash
 cp .env.example .env
-# fill DISCORD_TOKEN and CLIENT_ID
-# set GUILD_ID to your test server for instant command updates
+# DISCORD_TOKEN, CLIENT_ID, GUILD_ID (dev)
 
 npm install
-npm run deploy   # register slash commands
-npm run dev      # or: npm run build && npm start
+npm run deploy
+npm run dev
 ```
 
-Invite the bot with scopes `bot` and `applications.commands`. Minimal permissions: **Send Messages**, **Embed Links**, **Use Application Commands**.
+Invite scopes: `bot` + `applications.commands`.  
+Permissions: **Send Messages**, **Embed Links**, **Use Application Commands**, **Mention Roles** (only if `/alert` uses role pings).
+
+Do **not** enable Presence / Server Members / Message Content intents.
 
 ## Environment
 
@@ -38,7 +44,7 @@ Invite the bot with scopes `bot` and `applications.commands`. Minimal permission
 |---|---|---|
 | `DISCORD_TOKEN` | yes | Bot token |
 | `CLIENT_ID` | yes | Application client ID |
-| `GUILD_ID` | no | If set, `npm run deploy` registers guild commands (instant). Omit for global deploy. |
+| `GUILD_ID` | no | Guild command deploy (instant). Omit for global. |
 | `DATABASE_PATH` | no | SQLite path (default `./data/bot.sqlite`) |
 | `NODE_ENV` | no | `development` / `production` |
 | `LOG_LEVEL` | no | pino level (default `info`) |
@@ -47,52 +53,80 @@ Never commit `.env` or `*.sqlite`.
 
 ## Commands
 
-### `/timer`
+### Region resolution (shared)
 
-Shows the next upcoming events for the resolved region.
+1. `region:` option  
+2. Mapped Discord role (`/config role-map`)  
+3. Guild default (`/config region`)  
+4. Ephemeral select menu  
 
-**Region resolution order**
+### `/timer [region] [event]`
 
-1. `region:` option on the command  
-2. A Discord role mapped via `/config role-map`  
-3. Guild default from `/config region`  
-4. Ephemeral select menu if still unknown (or if multiple mapped roles match)
+Upcoming board for the resolved region.
 
-### `/config`
+### `/next [event] [region]`
+
+One-liner for the next occurrence (default event: Spacetime Rift).
+
+### `/reset [region]`
+
+Next daily and weekly reset times.
+
+### `/panel` (Manage Server)
 
 | Subcommand | Purpose |
 |---|---|
-| `region` | Set/clear server default region |
-| `role-map` | Map a role (e.g. `@EU`) to a region |
-| `role-unmap` | Remove a role mapping |
-| `show` | Print current config |
+| `setup [region]` | Post a live board in this channel |
+| `remove` | Stop updating the panel in this channel |
+| `list` | List panels on this server |
 
-Example: create roles `EU`, `NA East`, `Asia`, then:
+### `/alert` (Manage Server)
+
+| Subcommand | Purpose |
+|---|---|
+| `add event: [minutes:] [region:] [role:]` | Ping this channel before an event (default T-15) |
+| `remove id:` | Delete an alert |
+| `list` | Show alerts |
+
+Avoid alerting hourly Shugo / Invasion unless you want channel noise.
+
+### `/config` (Manage Server)
+
+| Subcommand | Purpose |
+|---|---|
+| `region` | Set/clear server default |
+| `role-map` / `role-unmap` | Map Discord roles to regions |
+| `show` | Print config |
 
 ```
 /config role-map role:@EU region:Europe
-/config role-map role:@Asia region:Asia
 /config region region:Europe
+/panel setup
+/alert add event:Spacetime Rift minutes:15 role:@RiftPing
 ```
 
-## Updating schedules after a patch
+## Updating schedules
 
-Event times live in versioned JSON — **not** hard-coded in TypeScript:
+Data files (not TypeScript):
 
-- [`data/regions.json`](data/regions.json) — region IDs, IANA timezones, schedule file mapping  
-- [`data/events.meta.json`](data/events.meta.json) — display names / confidence  
-- [`data/schedules/global.json`](data/schedules/global.json)  
-- [`data/schedules/korea.json`](data/schedules/korea.json)  
+- [`data/regions.json`](data/regions.json)
+- [`data/events.meta.json`](data/events.meta.json)
+- [`data/schedules/global.json`](data/schedules/global.json)
+- [`data/schedules/korea.json`](data/schedules/korea.json)
 - [`data/schedules/taiwan.json`](data/schedules/taiwan.json)
 
-Workflow:
+### After a patch
 
-1. Confirm new times in-game (or from a trusted client dump / tracker).  
-2. Edit the relevant schedule JSON (`hours`, `days`, durations, phases).  
-3. Bump `verifiedAt` and adjust `confidence` if needed.  
-4. Run `npm test` and redeploy the bot process (no slash re-deploy needed for data-only changes).
+```bash
+npm run sync-check    # compare local JSON ↔ Shugo.GG public timers.json
+# edit data/schedules/*.json if needed, bump verifiedAt
+npm test
+# restart bot process (no redeploy needed for data-only changes)
+```
 
-Extracting schedules from game files is useful **offline** for updating these JSON files. The bot never reads a game install at runtime.
+`sync-check` is **compare-only** — it never overwrites local files. Exit code `1` means mismatches to review. Also spot-check [MetaBot events](https://metabot.gg/en/aion-2/events) and in-game clocks.
+
+Manual cross-check is still required for KR siege *groups* (multiple start times) and anything Arena-related (not in Shugo timers.json).
 
 ## Development
 
@@ -100,27 +134,19 @@ Extracting schedules from game files is useful **offline** for updating these JS
 npm run typecheck
 npm test
 npm run lint
-npm run deploy   # after changing command definitions
+npm run sync-check
+npm run deploy   # after changing slash command definitions
 ```
 
-Architecture sketch:
+## Roadmap
 
-- `src/core/schedule-engine.ts` — DST-safe next-occurrence engine (Luxon)  
-- `src/core/region-resolver.ts` — option / role / guild fallback  
-- `src/persistence/` — SQLite store behind a small API (swapable later for Postgres)  
-- `src/commands/` — one file per slash command  
-
-## Roadmap (not in MVP)
-
-- Persistent auto-updating timer panel  
-- Pre-event mention alerts  
 - Kill-based field boss trackers  
-- Character / item lookup via PlayNC Open API  
-- Hosted public invite bot (same codepath; shared DB)
+- Character / item lookup (PlayNC Open API)  
+- Hosted public invite bot  
 
 ## Disclaimer
 
-Global regional timezones are **assumed** from community consensus (`Europe/Berlin`, `America/New_York`, …) unless marked otherwise. If countdowns disagree with your in-game clock, change `tz` in `data/regions.json` or pick another region and open an issue/PR.
+Global regional timezones follow community consensus (aligned with Shugo.GG where possible). If countdowns disagree with your in-game clock, adjust `tz` in `data/regions.json`.
 
 ## License
 
