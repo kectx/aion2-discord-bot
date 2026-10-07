@@ -23,8 +23,15 @@ export async function loadCommands(): Promise<Collection<string, Command>> {
     (f) => f.endsWith(".ts") || f.endsWith(".js"),
   );
 
+  const skip = new Set([
+    "types.ts",
+    "types.js",
+    "load-commands.ts",
+    "load-commands.js",
+  ]);
+
   for (const file of files) {
-    if (file === "types.ts" || file === "types.js" || file.startsWith("index.")) {
+    if (skip.has(file) || file.startsWith("index.")) {
       continue;
     }
 

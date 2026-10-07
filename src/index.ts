@@ -12,7 +12,7 @@ async function main(): Promise<void> {
   const { client, startBackgroundJobs } = await createClient();
   let stoppers: ReturnType<typeof startBackgroundJobs> | null = null;
 
-  client.once("ready", () => {
+  client.once("clientReady", () => {
     stoppers = startBackgroundJobs();
   });
 
