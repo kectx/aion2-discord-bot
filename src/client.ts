@@ -3,17 +3,32 @@ import {
   Events,
   GatewayIntentBits,
   Partials,
+  time,
+  TimestampStyles,
   type Interaction,
   type StringSelectMenuInteraction,
+  type TextChannel,
 } from "discord.js";
 import { getUpcoming } from "./core/schedule-engine.js";
 import { loadCommands } from "./commands/load-commands.js";
 import { REGION_SELECT_CUSTOM_ID } from "./discord/components/region-select.js";
 import { buildTimerEmbed } from "./discord/embeds/timer-embed.js";
 import { getEventMeta, getRegion } from "./data/load.js";
+import { parseRegionSelectCustomId } from "./lib/resolve-interaction-region.js";
 import { logger } from "./lib/logger.js";
+import { getAlertStore, getPanelStore } from "./persistence/store.js";
+import { startAlertScheduler } from "./services/alert-scheduler.js";
+import { startPanelUpdater } from "./services/panel-updater.js";
 
-export async function createClient(): Promise<Client> {
+export type BackgroundStoppers = {
+  stopPanels: () => void;
+  stopAlerts: () => void;
+};
+
+export async function createClient(): Promise<{
+  client: Client;
+  startBackgroundJobs: () => BackgroundStoppers;
+}> {
   const client = new Client({
     intents: [GatewayIntentBits.Guilds],
     partials: [Partials.Channel],
@@ -29,7 +44,13 @@ export async function createClient(): Promise<Client> {
     void handleInteraction(interaction);
   });
 
-  return client;
+  return {
+    client,
+    startBackgroundJobs: () => ({
+      stopPanels: startPanelUpdater(client),
+      stopAlerts: startAlertScheduler(client),
+    }),
+  };
 }
 
 async function handleInteraction(interaction: Interaction): Promise<void> {
@@ -63,13 +84,11 @@ async function handleInteraction(interaction: Interaction): Promise<void> {
 }
 
 async function handleRegionSelect(interaction: StringSelectMenuInteraction): Promise<void> {
-  const rest = interaction.customId.slice(REGION_SELECT_CUSTOM_ID.length);
-  const eventId = rest.startsWith(":") ? rest.slice(1) || null : null;
+  const parsed = parseRegionSelectCustomId(interaction.customId);
   const regionId = interaction.values[0];
-
   await interaction.deferUpdate();
 
-  if (!regionId) {
+  if (!parsed || !regionId) {
     await interaction.editReply({ content: "No region selected.", components: [], embeds: [] });
     return;
   }
@@ -80,17 +99,140 @@ async function handleRegionSelect(interaction: StringSelectMenuInteraction): Pro
     return;
   }
 
-  const occurrences = getUpcoming(region.id, new Date(), {
-    limit: eventId ? 8 : 12,
-    ...(eventId ? { eventIds: [eventId] } : {}),
-  });
+  const { prefix, payload } = parsed;
 
-  const embed = buildTimerEmbed({
-    region,
-    occurrences,
-    sourceLabel: "manual selection",
-    eventFilterLabel: eventId ? (getEventMeta(eventId)?.name ?? eventId) : null,
-  });
+  if (prefix === "timer") {
+    const eventId = payload || null;
+    const occurrences = getUpcoming(region.id, new Date(), {
+      limit: eventId ? 8 : 12,
+      ...(eventId ? { eventIds: [eventId] } : {}),
+    });
+    const embed = buildTimerEmbed({
+      region,
+      occurrences,
+      sourceLabel: "manual selection",
+      eventFilterLabel: eventId ? (getEventMeta(eventId)?.name ?? eventId) : null,
+    });
+    await interaction.editReply({ content: null, embeds: [embed], components: [] });
+    return;
+  }
 
-  await interaction.editReply({ content: null, embeds: [embed], components: [] });
+  if (prefix === "next") {
+    const eventId = payload || "spacetime_rift";
+    const meta = getEventMeta(eventId);
+    const next = getUpcoming(region.id, new Date(), { eventIds: [eventId], limit: 1 })[0];
+    if (!next || !meta) {
+      await interaction.editReply({
+        content: `No upcoming **${meta?.name ?? eventId}**.`,
+        components: [],
+        embeds: [],
+      });
+      return;
+    }
+    const status =
+      next.status === "active"
+        ? `**Active** · ends ${time(next.endsAt, TimestampStyles.RelativeTime)}`
+        : `${time(next.startsAt, TimestampStyles.RelativeTime)} (${time(next.startsAt, TimestampStyles.ShortDateTime)})`;
+    await interaction.editReply({
+      content: `${meta.emoji} **${meta.name}** — ${status}\nRegion: **${region.label}** · via manual selection`,
+      components: [],
+      embeds: [],
+    });
+    return;
+  }
+
+  if (prefix === "reset") {
+    const daily = getUpcoming(region.id, new Date(), { eventIds: ["daily_reset"], limit: 1 })[0];
+    const weekly = getUpcoming(region.id, new Date(), {
+      eventIds: ["weekly_reset"],
+      limit: 1,
+    })[0];
+    const lines = [
+      `Resets for **${region.label}** (via manual selection)`,
+      daily
+        ? `🔄 **Daily** — ${time(daily.startsAt, TimestampStyles.RelativeTime)} (${time(daily.startsAt, TimestampStyles.ShortDateTime)})`
+        : "🔄 **Daily** — unknown",
+      weekly
+        ? `📅 **Weekly** — ${time(weekly.startsAt, TimestampStyles.RelativeTime)} (${time(weekly.startsAt, TimestampStyles.ShortDateTime)})`
+        : "📅 **Weekly** — unknown",
+    ];
+    await interaction.editReply({ content: lines.join("\n"), components: [], embeds: [] });
+    return;
+  }
+
+  if (prefix === "panel") {
+    if (!interaction.guildId || !interaction.channelId) {
+      await interaction.editReply({
+        content: "Guild channel required.",
+        components: [],
+        embeds: [],
+      });
+      return;
+    }
+    const occurrences = getUpcoming(region.id, new Date(), { limit: 12 });
+    const embed = buildTimerEmbed({
+      region,
+      occurrences,
+      sourceLabel: "manual selection · live panel",
+    });
+    await interaction.editReply({
+      content: `Live panel for **${region.label}** — updates about every minute.`,
+      components: [],
+      embeds: [],
+    });
+    const channel = interaction.channel;
+    if (!channel || !channel.isTextBased() || channel.isDMBased()) {
+      return;
+    }
+    const message = await (channel as TextChannel).send({ embeds: [embed] });
+    getPanelStore().upsert({
+      guildId: interaction.guildId,
+      channelId: interaction.channelId,
+      messageId: message.id,
+      regionId: region.id,
+    });
+    return;
+  }
+
+  if (prefix === "alert") {
+    if (!interaction.guildId || !interaction.channelId) {
+      await interaction.editReply({
+        content: "Guild channel required.",
+        components: [],
+        embeds: [],
+      });
+      return;
+    }
+    const [eventId, minutesRaw, roleId] = payload.split("|");
+    if (!eventId) {
+      await interaction.editReply({
+        content: "Invalid alert payload.",
+        components: [],
+        embeds: [],
+      });
+      return;
+    }
+    const minutes = Number(minutesRaw || 15);
+    const alert = getAlertStore().add({
+      guildId: interaction.guildId,
+      channelId: interaction.channelId,
+      regionId: region.id,
+      eventId,
+      leadMinutes: Number.isFinite(minutes) ? minutes : 15,
+      mentionRoleId: roleId || null,
+    });
+    const meta = getEventMeta(eventId);
+    await interaction.editReply({
+      content: `Alert \`#${alert.id}\` set: ${meta?.emoji ?? ""} **${meta?.name ?? eventId}** · **${region.label}** · T-${alert.leadMinutes}m.`,
+      components: [],
+      embeds: [],
+    });
+    return;
+  }
+
+  await interaction.editReply({
+    content: `Unknown select context \`${prefix}\`.`,
+    components: [],
+    embeds: [],
+  });
 }

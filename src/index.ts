@@ -9,10 +9,17 @@ async function main(): Promise<void> {
   const env = loadEnv();
   initGuildStore(env.DATABASE_PATH);
 
-  const client = await createClient();
+  const { client, startBackgroundJobs } = await createClient();
+  let stoppers: ReturnType<typeof startBackgroundJobs> | null = null;
+
+  client.once("ready", () => {
+    stoppers = startBackgroundJobs();
+  });
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, "Shutting down");
+    stoppers?.stopPanels();
+    stoppers?.stopAlerts();
     client.destroy();
     closeDatabase();
     process.exit(0);
