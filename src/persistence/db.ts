@@ -32,6 +32,30 @@ function migrate(database: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_guild_role_regions_guild
       ON guild_role_regions (guild_id);
+
+    CREATE TABLE IF NOT EXISTS guild_panels (
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      region_id TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (guild_id, channel_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS guild_alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      region_id TEXT NOT NULL,
+      event_id TEXT NOT NULL,
+      lead_minutes INTEGER NOT NULL,
+      mention_role_id TEXT,
+      last_fired_key TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_guild_alerts_guild
+      ON guild_alerts (guild_id);
   `);
 }
 
