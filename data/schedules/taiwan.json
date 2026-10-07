@@ -22,7 +22,7 @@
       "eventId": "dimensional_invasion",
       "kind": "hourly_at_minute",
       "minute": 30,
-      "durationMinutes": 10
+      "durationMinutes": 15
     },
     {
       "eventId": "watcher_kaira",

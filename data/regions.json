@@ -35,7 +35,7 @@
     "id": "asia",
     "label": "Asia",
     "service": "global",
-    "tz": "Asia/Tokyo",
+    "tz": "Asia/Seoul",
     "tzConfidence": "assumed",
     "scheduleId": "global"
   },
