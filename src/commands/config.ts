@@ -1,4 +1,5 @@
 import {
+  InteractionContextType,
   PermissionFlagsBits,
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
@@ -16,7 +17,7 @@ export const configCommand: Command = {
     .setName("config")
     .setDescription("Configure AION 2 bot settings for this server")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-    .setDMPermission(false)
+    .setContexts(InteractionContextType.Guild)
     .addSubcommand((sub) =>
       sub
         .setName("region")
