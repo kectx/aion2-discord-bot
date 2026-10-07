@@ -1,0 +1,102 @@
+{
+  "spacetime_rift": {
+    "id": "spacetime_rift",
+    "name": "Spacetime Rift",
+    "shortName": "Rift",
+    "emoji": "🌀",
+    "description": "Cross-faction PvP portals. Entry portal is open briefly at the start.",
+    "confidence": "high",
+    "verifiedAt": "2026-10-05",
+    "sources": ["shugo.gg", "metabot.gg", "aion2-meta.com"]
+  },
+  "shugo_festival": {
+    "id": "shugo_festival",
+    "name": "Shugo Festival",
+    "shortName": "Shugo",
+    "emoji": "🎪",
+    "description": "Hourly minigames. Active games are shown in the in-game menu.",
+    "confidence": "high",
+    "verifiedAt": "2026-10-05",
+    "sources": ["shugo.gg", "metabot.gg", "aion2-meta.com"]
+  },
+  "dimensional_invasion": {
+    "id": "dimensional_invasion",
+    "name": "Dimensional Invasion",
+    "shortName": "Invasion",
+    "emoji": "⚔️",
+    "description": "Hourly open-world invasion events at :30 server time.",
+    "confidence": "high",
+    "verifiedAt": "2026-10-05",
+    "sources": ["shugo.gg", "metabot.gg", "aion2-meta.com"]
+  },
+  "watcher_kaira": {
+    "id": "watcher_kaira",
+    "name": "Watcher Kaira",
+    "shortName": "Kaira",
+    "emoji": "👁️",
+    "description": "Field boss in Chaotic Lower Reshanta.",
+    "confidence": "high",
+    "verifiedAt": "2026-10-05",
+    "sources": ["shugo.gg", "metabot.gg", "aion2-meta.com"]
+  },
+  "artifact_siege": {
+    "id": "artifact_siege",
+    "name": "Artifact Siege",
+    "shortName": "Siege",
+    "emoji": "🏰",
+    "description": "Scheduled Artifact Siege in Chaotic Lower Reshanta.",
+    "confidence": "high",
+    "verifiedAt": "2026-10-05",
+    "sources": ["shugo.gg", "metabot.gg", "aion2-meta.com"]
+  },
+  "executor_bosses": {
+    "id": "executor_bosses",
+    "name": "Executor Bosses",
+    "shortName": "Executors",
+    "emoji": "💀",
+    "description": "Abyss executor bosses after Artifact Siege (Argo, Kaira, Tamasa, and related).",
+    "confidence": "high",
+    "verifiedAt": "2026-10-05",
+    "sources": ["shugo.gg", "metabot.gg", "aion2-meta.com"]
+  },
+  "guardian_nahma": {
+    "id": "guardian_nahma",
+    "name": "Guardian Lord Nahma",
+    "shortName": "Nahma",
+    "emoji": "🛡️",
+    "description": "Guardian Lord Nahma (and Enraged in Middle Reshanta on Global).",
+    "confidence": "high",
+    "verifiedAt": "2026-10-05",
+    "sources": ["shugo.gg", "metabot.gg", "aion2-meta.com"]
+  },
+  "arena_of_tactics": {
+    "id": "arena_of_tactics",
+    "name": "Arena of Tactics",
+    "shortName": "Arena",
+    "emoji": "🏟️",
+    "description": "Daily 10v10 arena queue windows.",
+    "confidence": "high",
+    "verifiedAt": "2026-10-05",
+    "sources": ["metabot.gg", "aion2-meta.com"]
+  },
+  "daily_reset": {
+    "id": "daily_reset",
+    "name": "Daily Reset",
+    "shortName": "Daily",
+    "emoji": "🔄",
+    "description": "Daily content reset.",
+    "confidence": "high",
+    "verifiedAt": "2026-10-05",
+    "sources": ["shugo.gg", "aion2-meta.com", "aion2.run"]
+  },
+  "weekly_reset": {
+    "id": "weekly_reset",
+    "name": "Weekly Reset",
+    "shortName": "Weekly",
+    "emoji": "📅",
+    "description": "Weekly content reset (Wednesday).",
+    "confidence": "medium",
+    "verifiedAt": "2026-10-05",
+    "sources": ["shugo.gg", "aion2-meta.com"]
+  }
+}

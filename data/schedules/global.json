@@ -1,0 +1,82 @@
+{
+  "id": "global",
+  "label": "Global",
+  "verifiedAt": "2026-10-05",
+  "disclaimer": "Schedules are community-observed / client-derived, not an official NC API. Compare with the in-game clock after patches.",
+  "events": [
+    {
+      "eventId": "spacetime_rift",
+      "kind": "daily_hours",
+      "hours": [2, 5, 8, 11, 14, 17, 20, 23],
+      "minute": 0,
+      "durationMinutes": 60,
+      "phases": [{ "id": "portal_open", "label": "Portal open", "minutes": 10 }]
+    },
+    {
+      "eventId": "shugo_festival",
+      "kind": "hourly_at_minute",
+      "minute": 0,
+      "durationMinutes": 10
+    },
+    {
+      "eventId": "dimensional_invasion",
+      "kind": "hourly_at_minute",
+      "minute": 30,
+      "durationMinutes": 10
+    },
+    {
+      "eventId": "watcher_kaira",
+      "kind": "daily_hours",
+      "hours": [1, 4, 7, 10, 13, 16, 19, 22],
+      "minute": 0,
+      "durationMinutes": 30
+    },
+    {
+      "eventId": "artifact_siege",
+      "kind": "weekly_days_hours",
+      "days": [1, 4, 6],
+      "hour": 21,
+      "minute": 0,
+      "durationMinutes": 30
+    },
+    {
+      "eventId": "executor_bosses",
+      "kind": "weekly_days_hours",
+      "days": [1, 4, 6],
+      "hour": 21,
+      "minute": 30,
+      "durationMinutes": 30
+    },
+    {
+      "eventId": "guardian_nahma",
+      "kind": "weekly_days_hours",
+      "days": [5, 7],
+      "hour": 21,
+      "minute": 0,
+      "durationMinutes": 30
+    },
+    {
+      "eventId": "arena_of_tactics",
+      "kind": "daily_windows",
+      "windows": [
+        { "startHour": 11, "startMinute": 0, "endHour": 14, "endMinute": 0 },
+        { "startHour": 19, "startMinute": 0, "endHour": 21, "endMinute": 0 }
+      ]
+    },
+    {
+      "eventId": "daily_reset",
+      "kind": "absolute_utc",
+      "hour": 7,
+      "minute": 0,
+      "durationMinutes": 0
+    },
+    {
+      "eventId": "weekly_reset",
+      "kind": "absolute_utc",
+      "hour": 7,
+      "minute": 0,
+      "weekday": 3,
+      "durationMinutes": 0
+    }
+  ]
+}

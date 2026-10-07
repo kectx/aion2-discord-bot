@@ -1,0 +1,58 @@
+[
+  {
+    "id": "na_east",
+    "label": "NA East",
+    "service": "global",
+    "tz": "America/New_York",
+    "tzConfidence": "assumed",
+    "scheduleId": "global"
+  },
+  {
+    "id": "na_west",
+    "label": "NA West",
+    "service": "global",
+    "tz": "America/Los_Angeles",
+    "tzConfidence": "assumed",
+    "scheduleId": "global"
+  },
+  {
+    "id": "eu",
+    "label": "Europe",
+    "service": "global",
+    "tz": "Europe/Berlin",
+    "tzConfidence": "community_verified",
+    "scheduleId": "global"
+  },
+  {
+    "id": "latam",
+    "label": "South America (LATAM)",
+    "service": "global",
+    "tz": "America/Sao_Paulo",
+    "tzConfidence": "assumed",
+    "scheduleId": "global"
+  },
+  {
+    "id": "asia",
+    "label": "Asia",
+    "service": "global",
+    "tz": "Asia/Tokyo",
+    "tzConfidence": "assumed",
+    "scheduleId": "global"
+  },
+  {
+    "id": "korea",
+    "label": "Korea",
+    "service": "kr",
+    "tz": "Asia/Seoul",
+    "tzConfidence": "confirmed",
+    "scheduleId": "korea"
+  },
+  {
+    "id": "taiwan",
+    "label": "Taiwan",
+    "service": "tw",
+    "tz": "Asia/Taipei",
+    "tzConfidence": "confirmed",
+    "scheduleId": "taiwan"
+  }
+]
