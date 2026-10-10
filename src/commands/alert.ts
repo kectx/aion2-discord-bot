@@ -2,6 +2,7 @@ import {
   InteractionContextType,
   PermissionFlagsBits,
   SlashCommandBuilder,
+  type TextChannel,
 } from "discord.js";
 import { getEventMeta, listEventMeta, listRegions } from "../data/load.js";
 import { resolveRegionOrPrompt } from "../lib/resolve-interaction-region.js";
@@ -15,6 +16,21 @@ function regionChoices() {
 
 function eventChoices() {
   return listEventMeta().map((e) => ({ name: e.name, value: e.id }));
+}
+
+/** Matches plain-text or embed alert pings from this bot. */
+function looksLikeAlertMessage(message: {
+  content: string;
+  embeds: ReadonlyArray<{ description?: string | null; footer?: { text?: string | null } | null }>;
+}): boolean {
+  if (message.content.includes(" starts ") && message.content.includes(" · region ")) {
+    return true;
+  }
+  return message.embeds.some((embed) => {
+    const description = embed.description ?? "";
+    const footer = embed.footer?.text ?? "";
+    return description.startsWith("Starts ") || /T-\d+m/.test(footer);
+  });
 }
 
 export const alertCommand: Command = {
@@ -66,6 +82,21 @@ export const alertCommand: Command = {
     )
     .addSubcommand((sub) =>
       sub.setName("list").setDescription("List alerts for this server"),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("clear")
+        .setDescription(
+          "Delete leftover bot alert pings in this channel (does not remove alert configs)",
+        )
+        .addIntegerOption((opt) =>
+          opt
+            .setName("limit")
+            .setDescription("How many recent messages to scan (default 100, max 200)")
+            .setRequired(false)
+            .setMinValue(20)
+            .setMaxValue(200),
+        ),
     ),
 
   async execute(interaction) {
@@ -98,6 +129,66 @@ export const alertCommand: Command = {
       await interaction.reply({
         content: removed ? `Removed alert \`#${id}\`.` : `No alert \`#${id}\` on this server.`,
         ephemeral: true,
+      });
+      return;
+    }
+
+    if (sub === "clear") {
+      const limit = interaction.options.getInteger("limit") ?? 100;
+      const channel = interaction.channel;
+
+      if (!channel || !channel.isTextBased() || channel.isDMBased() || !("messages" in channel)) {
+        await interaction.reply({
+          content: "Use this in a text channel.",
+          ephemeral: true,
+        });
+        return;
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const textChannel = channel as TextChannel;
+      const botId = interaction.client.user?.id;
+      if (!botId) {
+        await interaction.editReply({ content: "Bot user unavailable." });
+        return;
+      }
+
+      let deleted = 0;
+      const tracked = store.listTrackedMessagesForChannel(
+        interaction.guildId,
+        interaction.channelId,
+      );
+
+      for (const alert of tracked) {
+        if (!alert.lastMessageId) continue;
+        const msg = await textChannel.messages.fetch(alert.lastMessageId).catch(() => null);
+        if (msg) {
+          const ok = await msg.delete().then(
+            () => true,
+            () => false,
+          );
+          if (ok) deleted += 1;
+        }
+      }
+      store.clearMessagesForChannel(interaction.guildId, interaction.channelId);
+
+      const recent = await textChannel.messages.fetch({ limit });
+      for (const message of recent.values()) {
+        if (message.author.id !== botId) continue;
+        if (!looksLikeAlertMessage(message)) continue;
+        const ok = await message.delete().then(
+          () => true,
+          () => false,
+        );
+        if (ok) deleted += 1;
+      }
+
+      await interaction.editReply({
+        content:
+          deleted > 0
+            ? `Cleared **${deleted}** alert message(s) from this channel. Alert configs are unchanged (\`/alert list\`).`
+            : "No leftover alert messages found in this channel (scanned recent history).",
       });
       return;
     }

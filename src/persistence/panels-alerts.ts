@@ -17,8 +17,17 @@ export type GuildAlert = {
   leadMinutes: number;
   mentionRoleId: string | null;
   lastFiredKey: string | null;
+  lastMessageId: string | null;
+  expiresAt: string | null;
   createdAt: string;
 };
+
+const ALERT_SELECT = `SELECT id, guild_id as guildId, channel_id as channelId, region_id as regionId,
+                event_id as eventId, lead_minutes as leadMinutes,
+                mention_role_id as mentionRoleId, last_fired_key as lastFiredKey,
+                last_message_id as lastMessageId, expires_at as expiresAt,
+                created_at as createdAt
+         FROM guild_alerts`;
 
 export class PanelStore {
   constructor(private readonly db: Database.Database) {}
@@ -92,8 +101,10 @@ export class AlertStore {
     const result = this.db
       .prepare(
         `INSERT INTO guild_alerts
-          (guild_id, channel_id, region_id, event_id, lead_minutes, mention_role_id, last_fired_key, created_at)
-         VALUES (@guildId, @channelId, @regionId, @eventId, @leadMinutes, @mentionRoleId, NULL, @createdAt)`,
+          (guild_id, channel_id, region_id, event_id, lead_minutes, mention_role_id,
+           last_fired_key, last_message_id, expires_at, created_at)
+         VALUES (@guildId, @channelId, @regionId, @eventId, @leadMinutes, @mentionRoleId,
+                 NULL, NULL, NULL, @createdAt)`,
       )
       .run({
         guildId: input.guildId,
@@ -114,32 +125,33 @@ export class AlertStore {
       leadMinutes: input.leadMinutes,
       mentionRoleId: input.mentionRoleId ?? null,
       lastFiredKey: null,
+      lastMessageId: null,
+      expiresAt: null,
       createdAt,
     };
   }
 
   listByGuild(guildId: string): GuildAlert[] {
     return this.db
-      .prepare(
-        `SELECT id, guild_id as guildId, channel_id as channelId, region_id as regionId,
-                event_id as eventId, lead_minutes as leadMinutes,
-                mention_role_id as mentionRoleId, last_fired_key as lastFiredKey,
-                created_at as createdAt
-         FROM guild_alerts WHERE guild_id = ? ORDER BY id`,
-      )
+      .prepare(`${ALERT_SELECT} WHERE guild_id = ? ORDER BY id`)
       .all(guildId) as GuildAlert[];
   }
 
   listAll(): GuildAlert[] {
+    return this.db.prepare(`${ALERT_SELECT} ORDER BY id`).all() as GuildAlert[];
+  }
+
+  /** Alerts whose Discord message should be deleted (event started). */
+  listExpiredMessages(nowIso: string): GuildAlert[] {
     return this.db
       .prepare(
-        `SELECT id, guild_id as guildId, channel_id as channelId, region_id as regionId,
-                event_id as eventId, lead_minutes as leadMinutes,
-                mention_role_id as mentionRoleId, last_fired_key as lastFiredKey,
-                created_at as createdAt
-         FROM guild_alerts ORDER BY id`,
+        `${ALERT_SELECT}
+         WHERE last_message_id IS NOT NULL
+           AND expires_at IS NOT NULL
+           AND expires_at <= ?
+         ORDER BY id`,
       )
-      .all() as GuildAlert[];
+      .all(nowIso) as GuildAlert[];
   }
 
   remove(guildId: string, id: number): boolean {
@@ -149,9 +161,49 @@ export class AlertStore {
     return result.changes > 0;
   }
 
-  markFired(id: number, firedKey: string): void {
+  markFired(
+    id: number,
+    firedKey: string,
+    messageId: string,
+    expiresAt: string,
+  ): void {
     this.db
-      .prepare(`UPDATE guild_alerts SET last_fired_key = ? WHERE id = ?`)
-      .run(firedKey, id);
+      .prepare(
+        `UPDATE guild_alerts
+         SET last_fired_key = ?, last_message_id = ?, expires_at = ?
+         WHERE id = ?`,
+      )
+      .run(firedKey, messageId, expiresAt, id);
+  }
+
+  clearMessage(id: number): void {
+    this.db
+      .prepare(
+        `UPDATE guild_alerts
+         SET last_message_id = NULL, expires_at = NULL
+         WHERE id = ?`,
+      )
+      .run(id);
+  }
+
+  listTrackedMessagesForChannel(guildId: string, channelId: string): GuildAlert[] {
+    return this.db
+      .prepare(
+        `${ALERT_SELECT}
+         WHERE guild_id = ? AND channel_id = ? AND last_message_id IS NOT NULL
+         ORDER BY id`,
+      )
+      .all(guildId, channelId) as GuildAlert[];
+  }
+
+  clearMessagesForChannel(guildId: string, channelId: string): number {
+    const result = this.db
+      .prepare(
+        `UPDATE guild_alerts
+         SET last_message_id = NULL, expires_at = NULL
+         WHERE guild_id = ? AND channel_id = ? AND last_message_id IS NOT NULL`,
+      )
+      .run(guildId, channelId);
+    return result.changes;
   }
 }

@@ -51,12 +51,29 @@ function migrate(database: Database.Database): void {
       lead_minutes INTEGER NOT NULL,
       mention_role_id TEXT,
       last_fired_key TEXT,
+      last_message_id TEXT,
+      expires_at TEXT,
       created_at TEXT NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_guild_alerts_guild
       ON guild_alerts (guild_id);
   `);
+
+  ensureColumn(database, "guild_alerts", "last_message_id", "TEXT");
+  ensureColumn(database, "guild_alerts", "expires_at", "TEXT");
+}
+
+function ensureColumn(
+  database: Database.Database,
+  table: string,
+  column: string,
+  sqlType: string,
+): void {
+  const cols = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === column)) {
+    database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${sqlType}`);
+  }
 }
 
 export function closeDatabase(): void {
